@@ -1,0 +1,16 @@
+# Secrets & credentials — NEVER commit
+.env
+auth.json
+credentials.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Runtime state
+*.log
+logs/

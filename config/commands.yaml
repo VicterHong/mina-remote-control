@@ -1,0 +1,150 @@
+# Mina Local Daemon — Command Allowlist
+# Only actions listed here can be executed. No arbitrary commands.
+# Each action maps to platform-specific subprocess argument arrays.
+
+actions:
+  # ── Power management ───────────────────────────────────────────
+  shutdown:
+    description: "Power off the machine"
+    destructive: true
+    confirm_delay_seconds: 5
+    windows: ["shutdown", "/s", "/t", "1"]
+    linux: ["systemctl", "poweroff"]
+    macos: ["shutdown", "-h", "now"]
+
+  restart:
+    description: "Reboot the machine"
+    destructive: true
+    confirm_delay_seconds: 5
+    windows: ["shutdown", "/r", "/t", "1"]
+    linux: ["systemctl", "reboot"]
+    macos: ["shutdown", "-r", "now"]
+
+  sleep:
+    description: "Suspend to RAM (sleep mode)"
+    destructive: false
+    confirm_delay_seconds: 0
+    windows: ["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"]
+    linux: ["systemctl", "suspend"]
+    macos: ["pmset", "sleepnow"]
+
+  hibernate:
+    description: "Hibernate (save to disk, power off)"
+    destructive: false
+    confirm_delay_seconds: 0
+    windows: ["shutdown", "/h"]
+    linux: ["systemctl", "hibernate"]
+    macos: ["pmset", "hibernatenow"]
+
+  wake:
+    description: "Wake-on-LAN: send magic packet to a registered device (devices:) or raw MAC"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "wake"
+    # Note: a sleeping machine cannot receive commands; run the daemon
+    # (or wol.py) on an always-on LAN device to wake THIS laptop.
+
+  # ── Screen & session ───────────────────────────────────────────
+  lock:
+    description: "Lock the screen / user session"
+    destructive: false
+    confirm_delay_seconds: 0
+    windows: ["rundll32.exe", "user32.dll,LockWorkStation"]
+    linux: ["loginctl", "lock-sessions"]
+    macos: ["/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession", "-suspend"]
+
+  screenshot:
+    description: "Capture screenshot and return file path"
+    destructive: false
+    confirm_delay_seconds: 0
+    handler: "screenshot"
+
+  # ── GUI automation ─────────────────────────────────────────────
+  open_app:
+    description: "Open an allowlisted application (apps: in mina.yaml)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "open_app"
+
+  open_url:
+    description: "Open a URL in the default browser (http/https/file only)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "open_url"
+
+  dashboard:
+    description: "Generate monitoring dashboard (CPU/RAM/disk/containers) and open it"
+    destructive: false
+    confirm_delay_seconds: 0
+    handler: "dashboard"
+
+  gui_type:
+    description: "Type text into the focused window (Tier 2 — needs pyautogui)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "gui_type"
+
+  gui_key:
+    description: "Press a key or combo, e.g. 'enter' or 'ctrl+alt+l' (Tier 2)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "gui_key"
+
+  gui_click:
+    description: "Click at 'x,y' or 'current' position (Tier 2)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "gui_click"
+
+  # ── System info & misc ─────────────────────────────────────────
+  status:
+    description: "Return system health (CPU, memory, disk, uptime)"
+    destructive: false
+    confirm_delay_seconds: 0
+    handler: "status"  # custom Python handler, not subprocess
+
+  volume:
+    description: "Set system volume (0-100)"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    windows: ["nircmd", "setsysvolume", "{arg}"]
+    linux: ["amixer", "set", "Master", "{arg}%"]
+    macos: ["osascript", "-e", "set volume output volume {arg}"]
+
+  run_script:
+    description: "Run a whitelisted script from ~/.mina/scripts/"
+    destructive: false
+    confirm_delay_seconds: 0
+    requires_args: true
+    handler: "script"
+    # Scripts must be in ~/.mina/scripts/ and have .sh, .bat, or .ps1 extension
+    # The handler validates the script name against directory listing
+
+# Rate limiting (per action per hour)
+rate_limits:
+  shutdown: 2
+  restart: 2
+  sleep: 10
+  hibernate: 5
+  wake: 10
+  lock: 20
+  status: 60
+  screenshot: 10
+  volume: 30
+  run_script: 20
+  open_app: 20
+  open_url: 20
+  dashboard: 10
+  gui_type: 30
+  gui_key: 30
+  gui_click: 30
+
+# Scripts directory (only scripts here can be run)
+scripts_directory: "~/.mina/scripts"

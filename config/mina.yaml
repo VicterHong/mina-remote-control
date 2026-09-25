@@ -1,0 +1,190 @@
+# =============================================================================
+# MINA Agent Configuration — system & hardware control profile
+# =============================================================================
+# This file is the agent-level config for MINA (not the daemon allowlist —
+# that one lives in commands.yaml). It declares:
+#   - identity & role
+#   - capability groups and which modules back them
+#   - per-capability enable flags + safety policy
+#   - OS access layer requirements (libraries / binaries)
+#
+# The daemon reads it for capability gating; humans read it as the spec.
+# =============================================================================
+
+agent:
+  name: "MINA"
+  role: "Personal Smart Consultant — local system management & hardware control"
+  version: "1.2.0"
+  description: >
+    MINA executes system-level power management (shutdown/restart/sleep/
+    hibernate/Wake-on-LAN), automated screen & GUI actions (open apps,
+    lock screen, show monitoring dashboard), and safe allowlisted script
+    execution on the user's laptop — driven from Hermes chat via an
+    authenticated, HMAC-signed tunnel.
+
+# ── Capability groups ────────────────────────────────────────────
+capabilities:
+
+  power:
+    description: "System-level power management"
+    module: "mina_daemon (built-in actions) + scripts/wol.py"
+    enabled: true
+    actions:
+      shutdown:  { destructive: true,  confirm_delay_seconds: 5 }
+      restart:   { destructive: true,  confirm_delay_seconds: 5 }
+      sleep:     { destructive: false, confirm_delay_seconds: 0 }
+      hibernate: { destructive: false, confirm_delay_seconds: 0 }
+      wake:      { destructive: false, handler: "wol", requires_args: true }
+    notes: >
+      'wake' sends a WoL magic packet. A sleeping machine cannot receive
+      tunnel commands, so wake must be triggered either (a) from another
+      always-on LAN device running wol.py, or (b) against OTHER LAN devices
+      from this laptop (nas, pc2, ...) registered in devices: below.
+
+  screen_gui:
+    description: "Screen, GUI & application automation"
+    module: "mina_daemon (built-in actions) + scripts/gui_automation.py + scripts/dashboard.py"
+    enabled: true
+    actions:
+      lock:       { destructive: false }
+      screenshot: { destructive: false }
+      open_app:   { destructive: false, handler: "open_app", requires_args: true }
+      open_url:   { destructive: false, handler: "open_url", requires_args: true }
+      dashboard:  { destructive: false, handler: "dashboard" }
+      gui_type:   { destructive: false, handler: "gui_type", requires_args: true, tier: 2 }
+      gui_key:    { destructive: false, handler: "gui_key", requires_args: true, tier: 2 }
+      gui_click:  { destructive: false, handler: "gui_click", requires_args: true, tier: 2 }
+    notes: >
+      Tier-1 actions (open_app/open_url/dashboard/lock/screenshot) need no
+      extra Python packages — only the platform launchers. Tier-2 actions
+      (gui_type/gui_key/gui_click) require pyautogui AND an active
+      graphical session (DISPLAY/WAYLAND_DISPLAY); they return a clean
+      'pyautogui_missing' / 'no_display' error otherwise.
+
+  scripts:
+    description: "Allowlisted script execution"
+    module: "mina_daemon (built-in run_script)"
+    enabled: true
+    scripts_directory: "~/.mina/scripts"
+    allowed_extensions: [".sh", ".bat", ".ps1", ".py"]
+    notes: "Alphanumeric/underscore/hyphen names only; path traversal blocked."
+
+# ── Safety policy (enforced in daemon code, restated here) ───────
+policy:
+  execution: "subprocess.run(argv, shell=False) — never shell=True"
+  allowlist: "only actions in commands.yaml can execute"
+  destructive_delay_seconds: 5
+  replay_window_seconds: 300
+  rate_limits_per_hour:
+    shutdown: 2
+    restart: 2
+    sleep: 10
+    hibernate: 5
+    lock: 20
+    wake: 10
+    open_app: 20
+    open_url: 20
+    dashboard: 10
+    gui_type: 30
+    gui_key: 30
+    gui_click: 30
+    status: 60
+    screenshot: 10
+    volume: 30
+    run_script: 20
+
+# ── Performance profile (low-spec / resource-constrained machines) ─
+# Priority: environment variable > this file > built-in default.
+# Tuned for weak laptops (Bay Trail-class low-spec, ~2-4 GB RAM).
+performance:
+  status_cpu_sample_interval_s: 0.3   # psutil sample window di 'status' (default 0.5)
+  dashboard_refresh_s: 60             # auto-refresh dashboard; 60s = hemat CPU (default 30)
+  cmd_timeout_s: 20                   # timeout subprocess (default 30)
+  tier2:
+    enabled: false                    # pyautogui berat → OFF di laptop low-spec; Tier-1 tetap penuh
+    min_free_memory_mb: 150           # auto-disable Tier-2 jika RAM bebas < nilai ini
+    max_consecutive_failures: 2       # circuit breaker: 2 gagal berturut → Tier-2 off
+  # Env overrides: MINA_STATUS_CPU_INTERVAL, MINA_DASHBOARD_REFRESH,
+  # MINA_CMD_TIMEOUT, MINA_TIER2, MINA_TIER2_MIN_FREE_MB, MINA_TIER2_MAX_FAILURES
+
+# ── Wake-on-LAN device registry ──────────────────────────────────
+# Add your LAN devices here; 'wake <name>' wakes them.
+# Fill MACs with the real hardware addresses.
+devices:
+  # pc2: { mac: "AA:BB:CC:DD:EE:FF", broadcast: "192.168.1.255", port: 9 }
+  # nas: { mac: "11:22:33:44:55:66" }
+
+# ── Allowlisted GUI apps (open_app targets) ──────────────────────
+# Each app resolves per-platform to an argv array (shell=False).
+apps:
+  browser:
+    linux: ["xdg-open", "https://"]
+    macos: ["open", "https://"]
+    windows: ["cmd", "/c", "start", "", "https://"]
+  terminal:
+    linux: ["x-terminal-emulator"]
+    macos: ["open", "-a", "Terminal"]
+    windows: ["cmd", "/c", "start", "", "cmd"]
+  files:
+    linux: ["xdg-open", "~"]
+    macos: ["open", "~"]
+    windows: ["explorer", "~"]
+  dashboard:
+    linux: ["xdg-open", "~/.mina/dashboard.html"]
+    macos: ["open", "~/.mina/dashboard.html"]
+    windows: ["cmd", "/c", "start", "", "~/.mina/dashboard.html"]
+  # vscode:
+  #   linux: ["code"]
+  #   macos: ["open", "-a", "Visual Studio Code"]
+  #   windows: ["cmd", "/c", "start", "", "code"]
+
+# ── OS access layer requirements ─────────────────────────────────
+# What MINA needs to control the laptop fully, per platform.
+os_access:
+
+  python_libraries:
+    required:
+      - name: "psutil"
+        purpose: "CPU/memory/disk/uptime metrics for status & dashboard"
+        install: "pip install psutil"
+    optional:
+      - name: "pyautogui"
+        purpose: "Tier-2 GUI automation: type text, press keys, move/click mouse"
+        install: "pip install pyautogui"
+        notes: "Needs an X11/Wayland session; on Wayland prefer xdotool/ydotool for keys."
+      - name: "Pillow"
+        purpose: "Screenshot on Windows (ImageGrab) and image ops"
+        install: "pip install Pillow"
+      - name: "pyyaml"
+        purpose: "Parse commands.yaml / mina.yaml allowlists"
+        install: "pip install pyyaml"
+
+  system_binaries:
+    linux:
+      power:    ["systemctl", "loginctl", "rtcwake (optional)"]
+      gui:      ["xdg-open", "xdotool (X11 keys)", "wmctrl (window mgmt)"]
+      capture:  ["scrot", "gnome-screenshot", "grim (Wayland)"]
+      network:  ["etherwake / wakeonlan (CLI alternatives to wol.py)"]
+      install:  "sudo apt install xdg-utils xdotool wmctrl scrot"
+    macos:
+      power:    ["pmset", "shutdown"]
+      gui:      ["open", "osascript"]
+      capture:  ["screencapture"]
+    windows:
+      power:    ["shutdown", "rundll32 (powrprof.dll)"]
+      gui:      ["cmd /c start", "powershell"]
+      capture:  ["Pillow ImageGrab", "nircmd (volume)"]
+
+  os_apis:
+    - "Linux: systemd D-Bus (systemctl/loginctl) — user must have polkit rights"
+    - "Linux: X11/Wayland session for GUI actions (Wayland restricts synthetic input)"
+    - "macOS: Accessibility permission for pyautogui/osascript key events"
+    - "Windows: for shutdown no admin needed; for sleep/hibernate check powercfg"
+
+# ── Activation prerequisites ─────────────────────────────────────
+activation:
+  - "Daemon runs on the LAPTOP: python3 scripts/mina_daemon.py (env: MINA_API_KEY, MINA_HMAC_SECRET)"
+  - "Tunnel (cloudflared/ngrok) exposes 127.0.0.1:8765 as MINA_TUNNEL_URL"
+  - "Hermes side sends via scripts/send_command.py --nl '<perintah>'"
+  - "For GUI tier-2: install pyautogui and start daemon from the desktop session"
+  - "For WoL: enable WoL in BIOS/UEFI + NIC (ethtool wol g); register devices: above"

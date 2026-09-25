@@ -1,0 +1,8 @@
+# MINA — required runtime dependencies
+psutil>=5.9      # system metrics (status, dashboard)
+PyYAML>=6.0      # config parsing (commands.yaml, mina.yaml)
+
+# Optional — Tier-2 GUI automation (pyautogui + Pillow).
+# Not needed on low-spec machines (Tier-2 can stay off).
+# pyautogui>=0.9
+# Pillow>=10.0
