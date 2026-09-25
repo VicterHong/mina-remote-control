@@ -1,5 +1,10 @@
 # MINA — Remote Control for Your Home Machine
 
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/victer)
+[![Saweria](https://img.shields.io/badge/Saweria-Support%20me-FAAE1D?logo=buymeacoffee&logoColor=white)](https://saweria.co/victer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests: 231 passing](https://img.shields.io/badge/tests-231%20passing-brightgreen.svg)](#tests)
+
 **Turn your old laptop into a remotely-controllable machine — from Telegram, Discord, or any HTTP client.**
 
 MINA is a lightweight, security-first daemon that lets an AI agent (or you) control a home computer remotely: shut it down, wake it up, open apps, take screenshots, run allowlisted scripts, and show a live system dashboard. It was built to run on **low-spec hardware** — a 2-4 GB RAM Bay Trail-class laptop — using ~25 MB of RAM.
@@ -144,6 +149,18 @@ Designed to keep an old laptop useful. Details in [`LOWSPEC-DEPLOY.md`](LOWSPEC-
 - Python 3.9+ (stdlib-heavy; only `psutil` + `PyYAML` required)
 - Linux / macOS / Windows
 - A tunnel (Cloudflare Tunnel or ngrok) if controlling from outside your LAN
+
+## Support This Project
+
+MINA is free and open source (MIT). If it's useful to you, you can support its development:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/victer)
+[![Saweria](https://img.shields.io/badge/Saweria-Support%20me-FAAE1D?logo=buymeacoffee&logoColor=white)](https://saweria.co/victer)
+
+- ☕ **Ko-fi** — one-time or monthly: [ko-fi.com/victer](https://ko-fi.com/victer)
+- 🇮🇩 **Saweria** — for Indonesian supporters: [saweria.co/victer](https://saweria.co/victer)
+
+Every contribution keeps this project maintained and free for everyone.
 
 ## License
 
